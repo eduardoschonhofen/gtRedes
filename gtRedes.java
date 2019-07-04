@@ -4,10 +4,17 @@ import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
 
+//COMPILAÇÃO:
+//1:javac -d . gtRedes.java
+//2:jar cvmf MANIFEST.MF gtRedes.jar gtRedes.class
+//3:java -jar gtRedes.jar -i ipDestino -p portaDestino -r velKbps
+
 
 //Nome:Eduardo Osielski Schonhofen
 //Disciplina:Redes de Computadores
 //Gerator de Tráfego(IPERF)
+//Teste Realizado:1000,10000, 7535
+//Verificação:Tamanho do pacote enviado no wireshark, total de pacotes enviados  com o IO Graphs, Filtro:udp.dstport == PORT and udp and !icmp
 
 public class gtRedes {
 
@@ -28,7 +35,7 @@ public class gtRedes {
 
         servidor = args[1];
         porta = Integer.parseInt(args[3]);
-        taxa = Integer.parseInt(args[4]);
+        taxa = Integer.parseInt(args[5]);
         taxa=taxa*1000; //transformar em Kbit( de acordo com definição, 1000 é 1Mbit,logo,1 é 1Kbit)
         taxa=taxa/8; //Converte para bytes
         IPAddress = InetAddress.getByName(servidor);
@@ -40,13 +47,24 @@ public class gtRedes {
         //Taxa dividida pelo tamanho do pacote
         rounds = taxa/packetLength;
 
+
+
         //Calcular o valor da modificação de bytes do pacote
-        modifier= (taxa-(rounds*packetLength))/rounds;
+	//Evitar ter mais de 40 rounds para não ocorrer Sleeps imprecisos(abaixo de 25ms)	
+	//Incrementa modifier de bytes do pacote enquanto o número de rounds não for menor igual que 40,divide a taxa pelo tamanho de pacote mais modificador
+	while(rounds>40)
+	{
+	modifier++;
+	rounds=taxa/(packetLength+modifier);
+	}
+	//Distribui um vresto restante entre todos os pacotes enviados no segundo.
+	modifier+= (taxa-(rounds*(packetLength+modifier)))/rounds;
 
-
-
+	//Calculo tempo de sleep
         timeToSleep=(int)Math.floor(1000/rounds);
 
+	//Verifica se há algum valor restando para enviar,se sim,enviar no último pacote do round.
+	lastSend=0;
         if(taxa!=(rounds*(packetLength+modifier)))
             lastSend=(taxa-(rounds*(packetLength+modifier)));
 
@@ -54,6 +72,7 @@ public class gtRedes {
         System.out.println(modifier);
         System.out.println(rounds);
         System.out.println(lastSend);
+	System.out.println(timeToSleep);
         Send();
 
 
